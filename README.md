@@ -25,7 +25,7 @@ from amniscient import AmniscientApi
 client = AmniscientApi(
     api_key="YOUR_API_KEY",
 )
-client.model.load_model(
+client.load_model(
     model_id="model_id",
     organization_id="organization_id",
 )
@@ -46,7 +46,7 @@ client = AsyncAmniscientApi(
 
 
 async def main() -> None:
-    await client.model.load_model(
+    await client.load_model(
         model_id="model_id",
         organization_id="organization_id",
     )
@@ -64,7 +64,7 @@ will be thrown.
 from amniscient.core.api_error import ApiError
 
 try:
-    client.model.load_model(...)
+    client.load_model(...)
 except ApiError as e:
     print(e.status_code)
     print(e.body)
@@ -87,7 +87,7 @@ A request is deemed retryable when any of the following HTTP status codes is ret
 Use the `max_retries` request option to configure this behavior.
 
 ```python
-client.model.load_model(..., request_options={
+client.load_model(..., request_options={
     "max_retries": 1
 })
 ```
@@ -107,7 +107,7 @@ client = AmniscientApi(
 
 
 # Override timeout for a specific method
-client.model.load_model(..., request_options={
+client.load_model(..., request_options={
     "timeout_in_seconds": 1
 })
 ```

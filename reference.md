@@ -1,6 +1,5 @@
 # Reference
-## Model
-<details><summary><code>client.model.<a href="src/amniscient/model/client.py">load_model</a>(...)</code></summary>
+<details><summary><code>client.<a href="src/amniscient/client.py">load_model</a>(...)</code></summary>
 <dl>
 <dd>
 
@@ -32,7 +31,7 @@ from amniscient import AmniscientApi
 client = AmniscientApi(
     api_key="YOUR_API_KEY",
 )
-client.model.load_model(
+client.load_model(
     model_id="model_id",
     organization_id="organization_id",
 )
@@ -79,4 +78,3 @@ client.model.load_model(
 </dl>
 </details>
 
-## Detection

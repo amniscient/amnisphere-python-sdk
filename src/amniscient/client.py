@@ -4,11 +4,20 @@ import typing
 from .environment import AmniscientApiEnvironment
 import httpx
 from .core.client_wrapper import SyncClientWrapper
-from .model.client import ModelClient
-from .detection.client import DetectionClient
+from .core.request_options import RequestOptions
+from .types.load_model_response import LoadModelResponse
+from .core.jsonable_encoder import jsonable_encoder
+from .core.pydantic_utilities import parse_obj_as
+from .errors.bad_request_error import BadRequestError
+from .errors.unauthorized_error import UnauthorizedError
+from .types.unauthorized_error_body import UnauthorizedErrorBody
+from json.decoder import JSONDecodeError
+from .core.api_error import ApiError
+from .types.detect_response import DetectResponse
 from .core.client_wrapper import AsyncClientWrapper
-from .model.client import AsyncModelClient
-from .detection.client import AsyncDetectionClient
+
+# this is used as the default value for optional parameters
+OMIT = typing.cast(typing.Any, ...)
 
 
 class AmniscientApi:
@@ -69,8 +78,146 @@ class AmniscientApi:
             else httpx.Client(timeout=_defaulted_timeout),
             timeout=_defaulted_timeout,
         )
-        self.model = ModelClient(client_wrapper=self._client_wrapper)
-        self.detection = DetectionClient(client_wrapper=self._client_wrapper)
+
+    def load_model(
+        self, model_id: str, *, organization_id: str, request_options: typing.Optional[RequestOptions] = None
+    ) -> LoadModelResponse:
+        """
+        Initializes a model for inference. This endpoint must be called before running any detections.
+
+        Parameters
+        ----------
+        model_id : str
+            The model ID of an active and trained AI model within your organization
+
+        organization_id : str
+            Your organization identifier
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        LoadModelResponse
+            200 - Your model was successfully loaded
+
+        Examples
+        --------
+        from amniscient import AmniscientApi
+
+        client = AmniscientApi(
+            api_key="YOUR_API_KEY",
+        )
+        client.load_model(
+            model_id="model_id",
+            organization_id="organization_id",
+        )
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"loadModel/{jsonable_encoder(model_id)}",
+            method="POST",
+            json={
+                "organization_id": organization_id,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                return typing.cast(
+                    LoadModelResponse,
+                    parse_obj_as(
+                        type_=LoadModelResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    typing.cast(
+                        typing.Optional[typing.Any],
+                        parse_obj_as(
+                            type_=typing.Optional[typing.Any],  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    typing.cast(
+                        UnauthorizedErrorBody,
+                        parse_obj_as(
+                            type_=UnauthorizedErrorBody,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, body=_response.text)
+        raise ApiError(status_code=_response.status_code, body=_response_json)
+
+    def detect(
+        self,
+        *,
+        organization_id: str,
+        file: typing.Optional[typing.Any] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> DetectResponse:
+        """
+        Detects an object within an uploaded image file. Make sure to load the model you're using for detection first!
+
+        Parameters
+        ----------
+        organization_id : str
+            Your organization identifier
+
+        file : typing.Optional[typing.Any]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DetectResponse
+            200 - Detection successful
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "detect",
+            method="POST",
+            data={
+                "organization_id": organization_id,
+                "file": file,
+            },
+            files={},
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                return typing.cast(
+                    DetectResponse,
+                    parse_obj_as(
+                        type_=DetectResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    typing.cast(
+                        typing.Optional[typing.Any],
+                        parse_obj_as(
+                            type_=typing.Optional[typing.Any],  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, body=_response.text)
+        raise ApiError(status_code=_response.status_code, body=_response_json)
 
 
 class AsyncAmniscientApi:
@@ -131,8 +278,154 @@ class AsyncAmniscientApi:
             else httpx.AsyncClient(timeout=_defaulted_timeout),
             timeout=_defaulted_timeout,
         )
-        self.model = AsyncModelClient(client_wrapper=self._client_wrapper)
-        self.detection = AsyncDetectionClient(client_wrapper=self._client_wrapper)
+
+    async def load_model(
+        self, model_id: str, *, organization_id: str, request_options: typing.Optional[RequestOptions] = None
+    ) -> LoadModelResponse:
+        """
+        Initializes a model for inference. This endpoint must be called before running any detections.
+
+        Parameters
+        ----------
+        model_id : str
+            The model ID of an active and trained AI model within your organization
+
+        organization_id : str
+            Your organization identifier
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        LoadModelResponse
+            200 - Your model was successfully loaded
+
+        Examples
+        --------
+        import asyncio
+
+        from amniscient import AsyncAmniscientApi
+
+        client = AsyncAmniscientApi(
+            api_key="YOUR_API_KEY",
+        )
+
+
+        async def main() -> None:
+            await client.load_model(
+                model_id="model_id",
+                organization_id="organization_id",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"loadModel/{jsonable_encoder(model_id)}",
+            method="POST",
+            json={
+                "organization_id": organization_id,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                return typing.cast(
+                    LoadModelResponse,
+                    parse_obj_as(
+                        type_=LoadModelResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    typing.cast(
+                        typing.Optional[typing.Any],
+                        parse_obj_as(
+                            type_=typing.Optional[typing.Any],  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    typing.cast(
+                        UnauthorizedErrorBody,
+                        parse_obj_as(
+                            type_=UnauthorizedErrorBody,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, body=_response.text)
+        raise ApiError(status_code=_response.status_code, body=_response_json)
+
+    async def detect(
+        self,
+        *,
+        organization_id: str,
+        file: typing.Optional[typing.Any] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> DetectResponse:
+        """
+        Detects an object within an uploaded image file. Make sure to load the model you're using for detection first!
+
+        Parameters
+        ----------
+        organization_id : str
+            Your organization identifier
+
+        file : typing.Optional[typing.Any]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DetectResponse
+            200 - Detection successful
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "detect",
+            method="POST",
+            data={
+                "organization_id": organization_id,
+                "file": file,
+            },
+            files={},
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                return typing.cast(
+                    DetectResponse,
+                    parse_obj_as(
+                        type_=DetectResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    typing.cast(
+                        typing.Optional[typing.Any],
+                        parse_obj_as(
+                            type_=typing.Optional[typing.Any],  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    )
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, body=_response.text)
+        raise ApiError(status_code=_response.status_code, body=_response_json)
 
 
 def _get_base_url(*, base_url: typing.Optional[str] = None, environment: AmniscientApiEnvironment) -> str:
